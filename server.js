@@ -100,26 +100,33 @@ app.use((error, req, res, next) => {
 });
 
 // ─── Boot ──────────────────────────────────────────────────────────────────
-async function start() {
-  await ensureAdminSchema();
+if (process.env.VERCEL) {
+  // In Vercel serverless environment, we export the app.
+  // The schema ensure function is run asynchronously.
+  ensureAdminSchema().catch(console.error);
+  module.exports = app;
+} else {
+  async function start() {
+    await ensureAdminSchema();
 
-  const server = app.listen(port, () => {
-    console.log(`✅ Server running on http://localhost:${port}`);
-  });
+    const server = app.listen(port, () => {
+      console.log(`✅ Server running on http://localhost:${port}`);
+    });
 
-  // Catch EADDRINUSE and other listen errors explicitly
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`❌ Port ${port} is already in use. Kill the other process first:`);
-      console.error(`   Run: netstat -ano | findstr :${port}  then: taskkill /PID <PID> /F`);
-    } else {
-      console.error('❌ Server error:', err);
-    }
+    // Catch EADDRINUSE and other listen errors explicitly
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${port} is already in use. Kill the other process first:`);
+        console.error(`   Run: netstat -ano | findstr :${port}  then: taskkill /PID <PID> /F`);
+      } else {
+        console.error('❌ Server error:', err);
+      }
+      process.exit(1);
+    });
+  }
+
+  start().catch((error) => {
+    console.error('❌ Server boot failed:', error);
     process.exit(1);
   });
 }
-
-start().catch((error) => {
-  console.error('❌ Server boot failed:', error);
-  process.exit(1);
-});
